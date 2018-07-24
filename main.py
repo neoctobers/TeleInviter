@@ -87,7 +87,7 @@ for client_session in conf.client_sessions:
         # Join if not IN.
         if g.left:
             clients[client_session](JoinChannelRequest(g))
-            print(colorama.Fore.LIGHTYELLOW_EX + 'Joined.')
+            print(colorama.Fore.LIGHTYELLOW_EX + 'JOINED')
         else:
             print(colorama.Fore.GREEN + 'IN')
 

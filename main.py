@@ -6,8 +6,11 @@
 #
 # Invite members, from `source_groups` to `destination_group`
 #
-# Github: https://github.com/neoctobers/TeleInviter
-# Telegram Group: https://t.me/https://t.me/TeleInviter
+# [Github]:
+#     https://github.com/neoctobers/TeleInviter
+#
+# [Telegram Group]:
+#     https://t.me/TeleInviter
 #
 
 import sys
@@ -60,38 +63,37 @@ for client_session in conf.client_sessions:
 
 ts = []
 
-# count clients & start working
-if len(clients):
-    print('%d client(s) initialized...' % len(clients))
-
-    c0 = clients[conf.client_sessions[0]]
-    c1 = clients[conf.client_sessions[1]]
-
-    g0 = c0.get_entity(conf.source_groups[0])
-    g1 = c1.get_entity(conf.source_groups[0])
-
-    # ps = c.get_participants(conf.source_groups[0], aggressive=True)
-    #
-    # i = 0
-    # for u in ps:
-    #     # No bot
-    #     if u.bot is False:
-    #         if type(u.status) in conf.filter_user_status_types:
-    #             # Not UserStatusOffline
-    #             print('%d: %s, %s | %s' % (i, u.username, u.first_name, u.last_name))
-    #             print(u.status)
-    #         elif (isinstance(u.status, UserStatusOffline)):
-    #             # UserStatusOffline
-    #             if is_user_status_offline_passed(u.status.was_online):
-    #                 print('%d: %s, %s | %s' % (i, u.username, u.first_name, u.last_name))
-    #                 print(u.status)
-    #                 ts.append(u.status.was_online)
-    #
-    #     # Next
-    #     i = i + 1
-    #     pass
-
-    console.embed(banner='\nconsole')
-
-else:
+# Exit if no available client
+if 0 == len(clients):
     sys.exit('No client available...')
+print('%d client(s) initialized...' % len(clients))
+
+# Start working...
+c0 = clients[conf.client_sessions[0]]
+c1 = clients[conf.client_sessions[1]]
+
+g0 = c0.get_entity(conf.source_groups[0])
+g1 = c1.get_entity(conf.source_groups[0])
+
+# ps = c.get_participants(conf.source_groups[0], aggressive=True)
+#
+# i = 0
+# for u in ps:
+#     # No bot
+#     if u.bot is False:
+#         if type(u.status) in conf.filter_user_status_types:
+#             # Not UserStatusOffline
+#             print('%d: %s, %s | %s' % (i, u.username, u.first_name, u.last_name))
+#             print(u.status)
+#         elif (isinstance(u.status, UserStatusOffline)):
+#             # UserStatusOffline
+#             if is_user_status_offline_passed(u.status.was_online):
+#                 print('%d: %s, %s | %s' % (i, u.username, u.first_name, u.last_name))
+#                 print(u.status)
+#                 ts.append(u.status.was_online)
+#
+#     # Next
+#     i = i + 1
+#     pass
+
+console.embed(banner='\nconsole')

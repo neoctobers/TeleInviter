@@ -78,29 +78,40 @@ sys.stdout.write(colorama.Fore.LIGHTCYAN_EX + '\n\nDestination Group: ')
 print('"%s"' % conf.destination_group)
 for client_session in conf.client_sessions:
     # each session
-    sys.stdout.write('  %s ... ' % client_session)
+    sys.stdout.write('  "%s" ... ' % client_session)
 
     # error when session user is banned
     try:
         g = clients[client_session].get_entity(conf.destination_group)
+
+        # Join if not IN.
+        if g.left:
+            clients[client_session](JoinChannelRequest(g))
+            print(colorama.Fore.LIGHTYELLOW_EX + 'Joined.')
+        else:
+            print(colorama.Fore.GREEN + 'IN')
+
+        # Democracy
+        if g.democracy:
+            # All members can add members
+            destination_groups[client_session] = g
+        else:
+            # Only admins can add members
+            if (g.admin_rights is not None and g.admin_rights.invite_users):
+                destination_groups[client_session] = g
+            else:
+                sys.stdout.write(colorama.Fore.LIGHTRED_EX + '    Have NO admin right to add a member,')
+                print(colorama.Fore.LIGHTYELLOW_EX + ' session is REMOVED.')
+                del clients[client_session]
+
     except ValueError as e:
         print(colorama.Fore.LIGHTRED_EX + 'ERROR')
         print(colorama.Fore.LIGHTRED_EX + '    %s' % e)
         print(colorama.Fore.LIGHTYELLOW_EX + '    Please make sure "%s" is NOT banned' % client_session)
-        print('    "%s" is removed from clients' % client_session)
+        print('    session "%s" is removed from clients' % client_session)
         del clients[client_session]
         # sys.exit()
         pass
-
-    # Join
-    if g.left:
-        clients[client_session](JoinChannelRequest(g))
-        print(colorama.Fore.LIGHTYELLOW_EX + 'Joined')
-    else:
-        print(colorama.Fore.GREEN + 'DONE')
-
-    # add to destination_groups dict
-    destination_groups[client_session] = g
 
 
 # Exit if there is no available client
@@ -108,11 +119,19 @@ if 0 == len(clients):
     print(colorama.Fore.LIGHTRED_EX + 'No client available...')
     sys.exit()
 
+
 # OUTPUT: clients
 print(colorama.Fore.LIGHTCYAN_EX + '\n\nThese clients have been launched:')
+i = 1
 for key, client in clients.items():
-    print('  "%s"' % key)
-print(colorama.Fore.LIGHTYELLOW_EX + '\n    clients amount: %d' % len(clients))
+    print('%4d: "%s"' % (i, key))
+    i = i + 1
+
+
+# Ready to GO ?
+if (input('\n\n\nReady to GO (y/n)?') not in ['y', 'yes']):
+    sys.exit('\n\n')
+
 
 
 # TODO: MANY THINGS

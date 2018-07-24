@@ -5,6 +5,7 @@
 # Author: @neoctobers
 #
 # Invite members, from `source_groups` to `destination_group`
+# And avoid repetition from `existing_groups` and `destination_group`
 #
 # [Github]:
 #     https://github.com/neoctobers/TeleInviter
@@ -14,13 +15,16 @@
 #
 
 import sys
+import colorama
 import conf
 import console
-from pprint import pprint
+import telethon
 from telethon import TelegramClient
 from telethon import sync
 from telethon import errors
 from telethon.tl.types import UserStatusOffline
+from telethon.tl.functions.channels import JoinChannelRequest
+from pprint import pprint
 
 
 def is_user_status_offline_passed(t):
@@ -38,62 +42,120 @@ def is_user_status_offline_passed(t):
     return False
 
 
-# initialize clients
-clients = {}
+# Initialize colorama with auto-reset
+colorama.init(autoreset=True)
+print('starting...')
 
+# Initialize clients
+clients = {}
+print(colorama.Fore.LIGHTCYAN_EX + '\n\nLaunching Session:')
 for client_session in conf.client_sessions:
     # Launch
-    print('[Launching Session]: %s ...' % client_session)
+    sys.stdout.write('  "%s" ... ' % client_session)
 
-    clients[client_session] = TelegramClient(
+    # Start the client
+    c = TelegramClient(
         client_session,
         conf.tg_api_id,
         conf.tg_api_hash,
         proxy=conf.proxy,
-    ).start()
+    )
+    c.start()
 
-    # Authorized Confirm
-    if clients[client_session].is_user_authorized():
-        print('  %s' % clients[client_session])
+    # Confirm the user is authorized
+    if c.is_user_authorized():
+        clients[client_session] = c
+        del c
+        print(colorama.Fore.GREEN + 'DONE')
     else:
-        print('  NEED Auth!')
+        # If it's not authorized, maybe need to do sth.?
+        print(colorama.Fore.LIGHTRED_EX + 'NEED Auth!')
 
-    # blank line
-    print()
 
-ts = []
+# Initialize the destination group dict, same keys as clients
+destination_groups = {}
+sys.stdout.write(colorama.Fore.LIGHTCYAN_EX + '\n\nDestination Group: ')
+print('"%s"' % conf.destination_group)
+for client_session in conf.client_sessions:
+    # each session
+    sys.stdout.write('  %s ... ' % client_session)
+
+    # error when session user is banned
+    try:
+        g = clients[client_session].get_entity(conf.destination_group)
+    except ValueError as e:
+        print(colorama.Fore.LIGHTRED_EX + 'ERROR')
+        print(colorama.Fore.LIGHTRED_EX + '    %s' % e)
+        print(colorama.Fore.LIGHTYELLOW_EX + '    Please make sure "%s" is NOT banned' % client_session)
+        print('    "%s" is removed from clients' % client_session)
+        del clients[client_session]
+        # sys.exit()
+        pass
+
+    # Join
+    if g.left:
+        clients[client_session](JoinChannelRequest(g))
+        print(colorama.Fore.LIGHTYELLOW_EX + 'Joined')
+    else:
+        print(colorama.Fore.GREEN + 'DONE')
+
+    # add to destination_groups dict
+    destination_groups[client_session] = g
+
 
 # Exit if there is no available client
 if 0 == len(clients):
-    sys.exit('No client available...')
-print('%d client(s) initialized...' % len(clients))
+    print(colorama.Fore.LIGHTRED_EX + 'No client available...')
+    sys.exit()
+
+# OUTPUT: clients
+print(colorama.Fore.LIGHTCYAN_EX + '\n\nThese clients have been launched:')
+for key, client in clients.items():
+    print('  "%s"' % key)
+print(colorama.Fore.LIGHTYELLOW_EX + '\n    clients amount: %d' % len(clients))
 
 
 # TODO: MANY THINGS
+#
+# ts = []
+#
+# # Start working...
+# client0 = clients[conf.client_sessions[0]]
+#
+# participants = []
+# for group_key in conf.source_groups:
+#     print('---\nGroup - %s\n---' % group_key)
+#
+#     try:
+#         g = client0.get_entity(group_key)
+#         if not isinstance(g, telethon.tl.types.Channel):
+#             print('is not a Channel')
+#         else:
+#             participants.extend(client0.get_participants(g, aggressive=True))
+#             print('%d members found.' % len(participants))
+#
+#     except errors.rpcerrorlist.InviteHashInvalidError:
+#         print('"%s"\n[Source group] The invite hash is invalid' % group_key)
+#
+# i = 0
+# for u in participants:
+#     # No bot
+#     if u.bot is False:
+#         if type(u.status) in conf.filter_user_status_types:
+#             # Not UserStatusOffline
+#             print('%6d: %d, %s, %s | %s' % (i, u.id, u.username, u.first_name, u.last_name))
+#             print(u.status)
+#         elif (isinstance(u.status, UserStatusOffline)):
+#             # UserStatusOffline
+#             if is_user_status_offline_passed(u.status.was_online):
+#                 print('%6d: %d, %s, %s | %s' % (i, u.id, u.username, u.first_name, u.last_name))
+#                 print(u.status)
+#                 ts.append(u.status.was_online)
+#
+#     # Next
+#     i = i + 1
 
-# Start working...
-client0 = clients[conf.client_sessions[0]]
 
-group0 = client0.get_entity(conf.source_groups[0])
-
-participants = client0.get_participants(group0, aggressive=True)
-
-i = 0
-for u in participants:
-    # No bot
-    if u.bot is False:
-        if type(u.status) in conf.filter_user_status_types:
-            # Not UserStatusOffline
-            print('%d: %s, %s | %s' % (i, u.username, u.first_name, u.last_name))
-            print(u.status)
-        elif (isinstance(u.status, UserStatusOffline)):
-            # UserStatusOffline
-            if is_user_status_offline_passed(u.status.was_online):
-                print('%d: %s, %s | %s' % (i, u.username, u.first_name, u.last_name))
-                print(u.status)
-                ts.append(u.status.was_online)
-
-    # Next
-    i = i + 1
+c = clients[conf.client_sessions[0]]
 
 console.embed(banner='\nconsole')

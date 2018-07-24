@@ -46,47 +46,63 @@ def is_user_status_offline_passed(t):
 colorama.init(autoreset=True)
 print('starting...')
 
-# Initialize clients
+# Initialize `clients` dict
 clients = {}
-print(colorama.Fore.LIGHTCYAN_EX + '\n\nLaunching Session:')
+client_sessions = []
+print(colorama.Fore.LIGHTCYAN_EX + '\n\nLaunching Clients:')
 for client_session in conf.client_sessions:
     # Launch
     sys.stdout.write('  "%s" ... ' % client_session)
 
-    # Start the client
+    # Create a Telegram Client
     c = TelegramClient(
         client_session,
         conf.tg_api_id,
         conf.tg_api_hash,
         proxy=conf.proxy,
     )
-    c.start()
-
-    # Confirm the user is authorized
+    c.connect()
     if c.is_user_authorized():
+        # Authorized
         clients[client_session] = c
-        del c
+        client_sessions.append(client_session)
         print(colorama.Fore.GREEN + 'DONE')
     else:
-        # If it's not authorized, maybe need to do sth.?
-        print(colorama.Fore.LIGHTRED_EX + 'NEED Auth!')
+        # Need to login
+        print(colorama.Fore.LIGHTYELLOW_EX + 'Need Login\n')
+        print(colorama.Fore.LIGHTMAGENTA_EX + 'Session login for "%s"' % client_session)
+        c.start()
+
+        # Verify Login
+        if c.is_user_authorized():
+            clients[client_session] = c
+            client_sessions.append(client_session)
+            print(colorama.Fore.GREEN + 'Session login for "%s" is SUCCESSFUL' % client_session)
+        else:
+            print(colorama.Fore.LIGHTRED_EX + 'Session login for "%s" is FAILED' % client_session)
 
 
-# Initialize the destination group dict, same keys as clients
+# Exit if there is no available client
+if 0 == len(clients):
+    print(colorama.Fore.LIGHTRED_EX + 'No client available...')
+    sys.exit()
+
+
+# Initialize `destination_groups` dict, same keys as clients
 destination_groups = {}
 sys.stdout.write(colorama.Fore.LIGHTCYAN_EX + '\n\nDestination Group: ')
 print('"%s"' % conf.destination_group)
-for client_session in conf.client_sessions:
+for client_session, client in clients.items():
     # each session
     sys.stdout.write('  "%s" ... ' % client_session)
 
     # error when session user is banned
     try:
-        g = clients[client_session].get_entity(conf.destination_group)
+        g = client.get_entity(conf.destination_group)
 
         # Join if not IN.
         if g.left:
-            clients[client_session](JoinChannelRequest(g))
+            client(JoinChannelRequest(g))
             print(colorama.Fore.LIGHTYELLOW_EX + 'JOINED')
         else:
             print(colorama.Fore.GREEN + 'IN')
@@ -128,9 +144,55 @@ for key, client in clients.items():
     i = i + 1
 
 
-# Ready to GO ?
-if (input('\n\n\nReady to GO (y/n)?') not in ['y', 'yes']):
+# Verify `source_groups`
+source_groups = []
+print(colorama.Fore.LIGHTCYAN_EX + '\n\nVerify Source Groups:')
+c = clients[client_sessions[0]]
+for group_key in conf.source_groups:
+    sys.stdout.write('  "%s" ... ' % group_key)
+    try:
+        g = c.get_entity(group_key)
+        source_groups.append(group_key)
+        print(colorama.Fore.GREEN + 'YES')
+    except errors.rpcerrorlist.InviteHashInvalidError as e:
+        sys.stdout.write(colorama.Fore.LIGHTRED_EX + '\n    [InviteHashInvalidError] ')
+        print(colorama.Fore.LIGHTYELLOW_EX + '%s' % e)
+    except ValueError as e:
+        sys.stdout.write(colorama.Fore.LIGHTRED_EX + '\n    [ValueError] ')
+        print(colorama.Fore.LIGHTYELLOW_EX + '%s' % e)
+
+
+# Continue
+if (input('\n\n\nContinue (y/n)? ') not in ['y', 'yes']):
     sys.exit('\n\n')
+
+
+# Initialize `participants` dict
+participants = {}
+print(colorama.Fore.LIGHTCYAN_EX + '\n\nLoading participants:')
+for client_session, client in clients.items():
+
+    participants[client_session] = {}
+    for group_key in source_groups:
+        sys.stdout.write('  [%s] "%s"' % (client_session, group_key))
+        print()
+        # try:
+        #     g = client.get_entity(group_key)
+        #
+        #     participants[client_session][group_key] = client.get_participants(g, aggressive=True)
+        #
+        # except errors.rpcerrorlist.InviteHashInvalidError:
+        #     print('"%s"\n[Source group] The invite hash is invalid' % group_key)
+
+        pass
+
+
+
+
+# Ready to GO ?
+if (input('\n\n\nReady to GO (y/n)? ') not in ['y', 'yes']):
+    sys.exit('\n\n')
+
 
 
 
@@ -175,6 +237,7 @@ if (input('\n\n\nReady to GO (y/n)?') not in ['y', 'yes']):
 #     i = i + 1
 
 
-c = clients[conf.client_sessions[0]]
+
+c1 = clients[conf.client_sessions[1]]
 
 console.embed(banner='\nconsole')

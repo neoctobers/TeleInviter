@@ -7,6 +7,7 @@ Invite members, from `source_groups` to `destination_group`
 - `pip3 install Telethon-sync`
 - `pip3 install PySocks`
 - `pip3 install peewee`
+- `pip3 install colorama`
 - `pip3 install pprint`
 - maybe some packages i forgot..
 

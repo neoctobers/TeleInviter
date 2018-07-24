@@ -44,12 +44,21 @@ def is_user_status_offline_passed(t):
 
 # Initialize colorama with auto-reset
 colorama.init(autoreset=True)
+FORE_CYAN = colorama.Fore.LIGHTCYAN_EX
+FORE_YELLOW = colorama.Fore.LIGHTYELLOW_EX
+FORE_GREEN = colorama.Fore.GREEN
+FORE_RED = colorama.Fore.LIGHTRED_EX
+FORE_MAGENTA = colorama.Fore.LIGHTMAGENTA_EX
+
+
+# OUTPUT: starting
 print('starting...')
+
 
 # Initialize `clients` dict
 clients = {}
 client_sessions = []
-print(colorama.Fore.LIGHTCYAN_EX + '\n\nLaunching Clients:')
+print(FORE_CYAN + '\n\nLaunching Clients:')
 for client_session in conf.client_sessions:
     # Launch
     sys.stdout.write('  "%s" ... ' % client_session)
@@ -66,31 +75,31 @@ for client_session in conf.client_sessions:
         # Authorized
         clients[client_session] = c
         client_sessions.append(client_session)
-        print(colorama.Fore.GREEN + 'DONE')
+        print(FORE_GREEN + 'DONE')
     else:
         # Need to login
-        print(colorama.Fore.LIGHTYELLOW_EX + 'Need Login\n')
-        print(colorama.Fore.LIGHTMAGENTA_EX + 'Session login for "%s"' % client_session)
+        print(FORE_YELLOW + 'Need Login\n')
+        print(FORE_MAGENTA + 'Session login for "%s"' % client_session)
         c.start()
 
         # Verify Login
         if c.is_user_authorized():
             clients[client_session] = c
             client_sessions.append(client_session)
-            print(colorama.Fore.GREEN + 'Session login for "%s" is SUCCESSFUL' % client_session)
+            print(FORE_GREEN + 'Session login for "%s" is SUCCESSFUL' % client_session)
         else:
-            print(colorama.Fore.LIGHTRED_EX + 'Session login for "%s" is FAILED' % client_session)
+            print(FORE_RED + 'Session login for "%s" is FAILED' % client_session)
 
 
 # Exit if there is no available client
 if 0 == len(clients):
-    print(colorama.Fore.LIGHTRED_EX + 'No client available...')
+    print(FORE_RED + 'No client available...')
     sys.exit()
 
 
 # Initialize `destination_groups` dict, same keys as clients
 destination_groups = {}
-sys.stdout.write(colorama.Fore.LIGHTCYAN_EX + '\n\nDestination Group: ')
+sys.stdout.write(FORE_CYAN + '\n\nDestination Group: ')
 print('"%s"' % conf.destination_group)
 for client_session, client in clients.items():
     # each session
@@ -103,9 +112,9 @@ for client_session, client in clients.items():
         # Join if not IN.
         if g.left:
             client(JoinChannelRequest(g))
-            print(colorama.Fore.LIGHTYELLOW_EX + 'JOINED')
+            print(FORE_YELLOW + 'JOINED')
         else:
-            print(colorama.Fore.GREEN + 'IN')
+            print(FORE_GREEN + 'IN')
 
         # Democracy
         if g.democracy:
@@ -116,14 +125,14 @@ for client_session, client in clients.items():
             if (g.admin_rights is not None and g.admin_rights.invite_users):
                 destination_groups[client_session] = g
             else:
-                sys.stdout.write(colorama.Fore.LIGHTRED_EX + '    Have NO admin right to add a member,')
-                print(colorama.Fore.LIGHTYELLOW_EX + ' session is REMOVED.')
+                sys.stdout.write(FORE_RED + '    Have NO admin right to add a member,')
+                print(FORE_YELLOW + ' session is REMOVED.')
                 del clients[client_session]
 
     except ValueError as e:
-        print(colorama.Fore.LIGHTRED_EX + 'ERROR')
-        print(colorama.Fore.LIGHTRED_EX + '    %s' % e)
-        print(colorama.Fore.LIGHTYELLOW_EX + '    Please make sure "%s" is NOT banned' % client_session)
+        print(FORE_RED + 'ERROR')
+        print(FORE_RED + '    %s' % e)
+        print(FORE_YELLOW + '    Please make sure "%s" is NOT banned' % client_session)
         print('    session "%s" is removed from clients' % client_session)
         del clients[client_session]
         # sys.exit()
@@ -132,68 +141,66 @@ for client_session, client in clients.items():
 
 # Exit if there is no available client
 if 0 == len(clients):
-    print(colorama.Fore.LIGHTRED_EX + 'No client available...')
+    print(FORE_RED + 'No client available...')
     sys.exit()
 
 
 # OUTPUT: clients
-print(colorama.Fore.LIGHTCYAN_EX + '\n\nThese clients have been launched:')
+print(FORE_CYAN + '\n\nThese clients have been launched:')
 i = 1
 for key, client in clients.items():
     print('%4d: "%s"' % (i, key))
     i = i + 1
+del i
 
 
 # Verify `source_groups`
 source_groups = []
-print(colorama.Fore.LIGHTCYAN_EX + '\n\nVerify Source Groups:')
+print(FORE_CYAN + '\n\nVerify Source Groups:')
 c = clients[client_sessions[0]]
 for group_key in conf.source_groups:
-    sys.stdout.write('  "%s" ... ' % group_key)
+    print('  "%s" ... ' % group_key)
     try:
         g = c.get_entity(group_key)
         source_groups.append(group_key)
-        print(colorama.Fore.GREEN + 'YES')
+        print(FORE_GREEN + '    %s' % g.title)
     except errors.rpcerrorlist.InviteHashInvalidError as e:
-        sys.stdout.write(colorama.Fore.LIGHTRED_EX + '\n    [InviteHashInvalidError] ')
-        print(colorama.Fore.LIGHTYELLOW_EX + '%s' % e)
+        sys.stdout.write(FORE_RED + '    [InviteHashInvalidError] ')
+        print(FORE_YELLOW + '%s' % e)
     except ValueError as e:
-        sys.stdout.write(colorama.Fore.LIGHTRED_EX + '\n    [ValueError] ')
-        print(colorama.Fore.LIGHTYELLOW_EX + '%s' % e)
+        sys.stdout.write(FORE_RED + '    [ValueError] ')
+        print(FORE_YELLOW + '%s' % e)
+
+
+# OUTPUT: source_groups
+print(FORE_CYAN + '\n\nThese Source Groups have been verified:')
+i = 1
+for group_key in source_groups:
+    print('%4d: "%s"' % (i, group_key))
+    i = i + 1
+del i
 
 
 # Continue
-if (input('\n\n\nContinue (y/n)? ') not in ['y', 'yes']):
+if (input('\n\n\nLOAD participants (y/n)? ') not in ['y', 'yes']):
     sys.exit('\n\n')
 
 
 # Initialize `participants` dict
 participants = {}
-print(colorama.Fore.LIGHTCYAN_EX + '\n\nLoading participants:')
+print(FORE_CYAN + '\n\nLoading participants:')
 for client_session, client in clients.items():
 
     participants[client_session] = {}
     for group_key in source_groups:
-        sys.stdout.write('  [%s] "%s"' % (client_session, group_key))
-        print()
-        # try:
-        #     g = client.get_entity(group_key)
-        #
-        #     participants[client_session][group_key] = client.get_participants(g, aggressive=True)
-        #
-        # except errors.rpcerrorlist.InviteHashInvalidError:
-        #     print('"%s"\n[Source group] The invite hash is invalid' % group_key)
-
-        pass
-
-
+        sys.stdout.write('  [%s] "%s" ... ' % (client_session, group_key))
+        participants[client_session][group_key] = client.get_participants(group_key, aggressive=True)
+        print(FORE_GREEN + '%d members' % len(participants[client_session][group_key]))
 
 
 # Ready to GO ?
 if (input('\n\n\nReady to GO (y/n)? ') not in ['y', 'yes']):
     sys.exit('\n\n')
-
-
 
 
 # TODO: MANY THINGS

@@ -19,12 +19,14 @@ import colorama
 import conf
 import console
 import telethon
-from telethon import TelegramClient
 from telethon import sync
 from telethon import errors
 from telethon.tl.types import UserStatusOffline
 from telethon.tl.functions.channels import JoinChannelRequest
+from telethon.tl.functions.channels import InviteToChannelRequest
 from pprint import pprint
+
+import db
 
 
 def is_user_status_offline_passed(t):
@@ -64,7 +66,7 @@ for client_session in conf.client_sessions:
     sys.stdout.write('  "%s" ... ' % client_session)
 
     # Create a Telegram Client
-    c = TelegramClient(
+    c = telethon.TelegramClient(
         client_session,
         conf.tg_api_id,
         conf.tg_api_hash,
@@ -150,7 +152,7 @@ print(FORE_CYAN + '\n\nThese clients have been launched:')
 i = 1
 for key, client in clients.items():
     print('%4d: "%s"' % (i, key))
-    i = i + 1
+    i += 1
 del i
 
 
@@ -177,7 +179,7 @@ print(FORE_CYAN + '\n\nThese Source Groups have been verified:')
 i = 1
 for group_key in source_groups:
     print('%4d: "%s"' % (i, group_key))
-    i = i + 1
+    i += 1
 del i
 
 
@@ -190,12 +192,15 @@ if (input('\n\n\nLOAD participants (y/n)? ') not in ['y', 'yes']):
 participants = {}
 print(FORE_CYAN + '\n\nLoading participants:')
 for client_session, client in clients.items():
-
-    participants[client_session] = {}
+    print('\n- %s:' % client_session)
+    participants[client_session] = []
     for group_key in source_groups:
-        sys.stdout.write('  [%s] "%s" ... ' % (client_session, group_key))
-        participants[client_session][group_key] = client.get_participants(group_key, aggressive=True)
-        print(FORE_GREEN + '%d members' % len(participants[client_session][group_key]))
+        sys.stdout.write('  "%s" ... ' % group_key)
+        ps = client.get_participants(group_key, aggressive=True)
+        participants[client_session].extend(ps)
+        print(FORE_GREEN + '%d members' % len(ps))
+
+    print(FORE_YELLOW + '    %d members' % len(participants[client_session]))
 
 
 # Ready to GO ?
@@ -203,48 +208,46 @@ if (input('\n\n\nReady to GO (y/n)? ') not in ['y', 'yes']):
     sys.exit('\n\n')
 
 
-# TODO: MANY THINGS
-#
-# ts = []
-#
-# # Start working...
-# client0 = clients[conf.client_sessions[0]]
-#
-# participants = []
-# for group_key in conf.source_groups:
-#     print('---\nGroup - %s\n---' % group_key)
-#
-#     try:
-#         g = client0.get_entity(group_key)
-#         if not isinstance(g, telethon.tl.types.Channel):
-#             print('is not a Channel')
-#         else:
-#             participants.extend(client0.get_participants(g, aggressive=True))
-#             print('%d members found.' % len(participants))
-#
-#     except errors.rpcerrorlist.InviteHashInvalidError:
-#         print('"%s"\n[Source group] The invite hash is invalid' % group_key)
-#
-# i = 0
-# for u in participants:
-#     # No bot
-#     if u.bot is False:
-#         if type(u.status) in conf.filter_user_status_types:
-#             # Not UserStatusOffline
-#             print('%6d: %d, %s, %s | %s' % (i, u.id, u.username, u.first_name, u.last_name))
-#             print(u.status)
-#         elif (isinstance(u.status, UserStatusOffline)):
-#             # UserStatusOffline
-#             if is_user_status_offline_passed(u.status.was_online):
-#                 print('%6d: %d, %s, %s | %s' % (i, u.id, u.username, u.first_name, u.last_name))
-#                 print(u.status)
-#                 ts.append(u.status.was_online)
-#
-#     # Next
-#     i = i + 1
+def get_user_display_name(u):
+    name = []
+    if u.first_name:
+        name.append(u.first_name)
+    if u.last_name:
+        name.append(u.last_name)
+    return ' | '.join(name)
 
 
+def invite_user(u):
+    sys.stdout.write('%6d: %s ... ' % (i, get_user_display_name(u)))
 
-c1 = clients[conf.client_sessions[1]]
+    row = db.Invite.select().where(db.Invite.user_id == u.id).first()
 
+    if row is None:
+        invite = db.save_invite(u)
+        print(FORE_YELLOW + 'TO BE INVITED')
+    else:
+        print(FORE_GREEN + 'skipped')
+
+
+# Start inviting
+print(FORE_CYAN + '\n\nStarting inviting:')
+i = 0
+for u in participants[client_sessions[0]]:
+    if u.bot is False:
+        if len(get_user_display_name(u)) > conf.filter_user_display_name_too_much_words_limit:
+            pass
+        elif type(u.status) in conf.filter_user_status_types:
+            # Not UserStatusOffline
+            invite_user(u)
+        elif (isinstance(u.status, UserStatusOffline)):
+            # UserStatusOffline
+            if is_user_status_offline_passed(u.status.was_online):
+                invite_user(u)
+
+    # Next
+    i += 1
+
+
+# embed & console
 console.embed(banner='\nconsole')
+

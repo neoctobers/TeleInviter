@@ -18,9 +18,10 @@ And avoid repetition from `destination_group`
 - two confirmation during the processing
 
 # Developing
-- ing...
-- ing...
-- ing...
+- ing. ing.. ing....
+
 
 # TODO
-- hehe..
+- db file name: hash sth.. / ex. destination_group(s)?
+- save users of destination_group, after `Initialize destination_groups dict`
+- etc.

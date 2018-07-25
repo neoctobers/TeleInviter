@@ -1,4 +1,6 @@
-# coding:utf-8
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import socks
 import datetime
 from telethon.tl.types import UserStatusOnline
@@ -23,6 +25,9 @@ client_sessions = [
     'YOUR_SESSION_KEYS',
 ]
 
+# Existing group list
+existing_groups = []
+
 # source list (group or supergroup)
 source_groups = [
     'ENTITY_USERNAME',
@@ -31,20 +36,24 @@ source_groups = [
 # destination (group or supergroup)
 destination_group = 'ENTITY_USERNAME'
 
-# random relax during inviting actions
-rd_sleep_min = 5
-rd_sleep_max = 15
-
 # Filter of UserStatus
 # Tips: DO NOT put `UserStatusOffline` in this
 filter_user_status_types = [
-    # UserStatusOnline,
-    # UserStatusRecently,
-    # UserStatusLastWeek,
+    UserStatusOnline,
+    UserStatusRecently,
+    UserStatusLastWeek,
     # UserStatusLastMonth,
     # UserStatusEmpty,
 ]
 
 # UserStatusOffline `was_online` limit
-filter_user_status_offline_was_online_min = None
-filter_user_status_offline_was_online_max = datetime.datetime.now() - datetime.timedelta(weeks=3)
+filter_user_status_offline_was_online_min = datetime.datetime.now() - datetime.timedelta(weeks=4)
+filter_user_status_offline_was_online_max = None
+
+# if display_name is too long, skip
+filter_user_display_name_too_much_words_limit = 25
+
+# random relax during inviting actions
+rd_sleep_min = 3
+rd_sleep_max = 10
+

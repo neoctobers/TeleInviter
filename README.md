@@ -1,5 +1,6 @@
 # TeleInviter
-Invite members, from `source_groups` to `destination_group`
+Invite members, from (many) `source_groups` to (one) `destination_group`
+And avoid repetition from `destination_group`
 
 # ENV
 - python3
@@ -11,12 +12,15 @@ Invite members, from `source_groups` to `destination_group`
 - `pip3 install pprint`
 - maybe some packages i forgot..
 
+# RUN
+- make a configuration file named `conf.py`
+- run `py main.py`
+- two confirmation during the processing
+
 # Developing
 - ing...
 - ing...
 - ing...
 
 # TODO
-- Use sqlite3 as db?
-- Many other things..
 - hehe..

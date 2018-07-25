@@ -4,8 +4,8 @@
 # Title:  TeleInviter
 # Author: @neoctobers
 #
-# Invite members, from `source_groups` to `destination_group`
-# And avoid repetition from `existing_groups` and `destination_group`
+# Invite members, from (many) `source_groups` to (one) `destination_group`
+# And avoid repetition from `destination_group`
 #
 # [Github]:
 #     https://github.com/neoctobers/TeleInviter
@@ -15,10 +15,13 @@
 #
 
 import sys
+import time
+import random
 import colorama
+import telethon
 import conf
 import console
-import telethon
+import db
 from telethon import sync
 from telethon import errors
 from telethon.tl.types import UserStatusOffline
@@ -26,10 +29,102 @@ from telethon.tl.functions.channels import JoinChannelRequest
 from telethon.tl.functions.channels import InviteToChannelRequest
 from pprint import pprint
 
-import db
+
+
+def get_user_display_name(u):
+    """Get `display_name` for a user
+
+    Args:
+        u: user
+
+    Returns:
+        A string
+        example:
+            'Donald J. Trump'
+    """
+    name = []
+    if u.first_name:
+        name.append(u.first_name)
+    if u.last_name:
+        name.append(u.last_name)
+    return '|'.join(name)
+
+
+def invite_user(u):
+    """Invite user to destination_group
+
+    Args:
+        u: user
+    """
+
+    # SN, display_name
+    sys.stdout.write('%6d > [%s] ... ' % (i, get_user_display_name(u)))
+
+    # Find in db
+    row = db.Invite.select().where(db.Invite.user_id == u.id).first()
+
+    # No record in db
+    if row is None:
+        # Get a random session
+        client_session = random.choice(client_sessions)
+
+        # Echo
+        sys.stdout.write(colorama.Fore.LIGHTYELLOW_EX + 'INVITE by "%s" ... ' % client_session)
+
+
+        try:
+            # Invite
+            clients[client_session](InviteToChannelRequest(
+                destination_groups[client_session],
+                [u],
+            ))
+
+            # Save to db
+            db.save_invite(u)
+
+            # shows done
+            sys.stdout.write(colorama.Fore.GREEN + 'DONE')
+
+            # CPU sleep
+            sleeping_secs = random.randint(conf.rd_sleep_min, conf.rd_sleep_max)
+            print(colorama.Fore.LIGHTMAGENTA_EX + ' waiting %d secs...' % sleeping_secs)
+            time.sleep(sleeping_secs)
+        except errors.rpcerrorlist.UserPrivacyRestrictedError:
+            print(colorama.Fore.LIGHTRED_EX + 'error#0. UserPrivacyRestrictedError...')
+        except errors.rpcerrorlist.ChatAdminRequiredError:
+            print(colorama.Fore.LIGHTRED_EX + 'error#1. ChatAdminRequiredError...')
+        except errors.rpcerrorlist.ChatIdInvalidError:
+            print(colorama.Fore.LIGHTRED_EX + 'error#2. ChatIdInvalidError...')
+        except errors.rpcerrorlist.InputUserDeactivatedError:
+            print(colorama.Fore.LIGHTRED_EX + 'error#3. InputUserDeactivatedError...')
+        except errors.rpcerrorlist.PeerIdInvalidError:
+            print(colorama.Fore.LIGHTRED_EX + 'error#4. PeerIdInvalidError...')
+        except errors.rpcerrorlist.UserAlreadyParticipantError:
+            print(colorama.Fore.LIGHTRED_EX + 'error#5. UserAlreadyParticipantError...')
+        except errors.rpcerrorlist.UserIdInvalidError:
+            print(colorama.Fore.LIGHTRED_EX + 'error#6. UserIdInvalidError...')
+        except errors.rpcerrorlist.UserNotMutualContactError:
+            print(colorama.Fore.LIGHTRED_EX + 'error#7. UserNotMutualContactError...')
+        except errors.rpcerrorlist.UsersTooMuchError:
+            print(colorama.Fore.LIGHTRED_EX + 'error#8. UsersTooMuchError...')
+        except errors.rpcerrorlist.PeerFloodError:
+            sys.stdout.write(colorama.Fore.LIGHTRED_EX + 'error#9. PeerFloodError...')
+            print('Retry after 2 Mins...')
+            time.sleep(120)
+            invite_user(u)
+    else:
+        print(colorama.Fore.GREEN + 'skipped')
 
 
 def is_user_status_offline_passed(t):
+    """Check UserStatusOffline `was_online` limit
+
+    Args:
+        t: datetime
+
+    Returns:
+        boolean
+    """
     if (
             (conf.filter_user_status_offline_was_online_min is None or t >= conf.filter_user_status_offline_was_online_min)
             and
@@ -44,13 +139,8 @@ def is_user_status_offline_passed(t):
     return False
 
 
-# Initialize colorama with auto-reset
+# Initialize colorama with auto-reset on
 colorama.init(autoreset=True)
-FORE_CYAN = colorama.Fore.LIGHTCYAN_EX
-FORE_YELLOW = colorama.Fore.LIGHTYELLOW_EX
-FORE_GREEN = colorama.Fore.GREEN
-FORE_RED = colorama.Fore.LIGHTRED_EX
-FORE_MAGENTA = colorama.Fore.LIGHTMAGENTA_EX
 
 
 # OUTPUT: starting
@@ -60,7 +150,7 @@ print('starting...')
 # Initialize `clients` dict
 clients = {}
 client_sessions = []
-print(FORE_CYAN + '\n\nLaunching Clients:')
+print(colorama.Fore.LIGHTCYAN_EX + '\n\nLaunching Clients:')
 for client_session in conf.client_sessions:
     # Launch
     sys.stdout.write('  "%s" ... ' % client_session)
@@ -73,35 +163,39 @@ for client_session in conf.client_sessions:
         proxy=conf.proxy,
     )
     c.connect()
+
+    # Confirm authorized or start the client (login)
     if c.is_user_authorized():
         # Authorized
         clients[client_session] = c
         client_sessions.append(client_session)
-        print(FORE_GREEN + 'DONE')
+        print(colorama.Fore.GREEN + 'DONE')
     else:
         # Need to login
-        print(FORE_YELLOW + 'Need Login\n')
-        print(FORE_MAGENTA + 'Session login for "%s"' % client_session)
+        print(colorama.Fore.LIGHTYELLOW_EX + 'Need Login\n')
+        print(colorama.Fore.LIGHTMAGENTA_EX + 'Session login for "%s"' % client_session)
+
+        # Login
         c.start()
 
         # Verify Login
         if c.is_user_authorized():
             clients[client_session] = c
             client_sessions.append(client_session)
-            print(FORE_GREEN + 'Session login for "%s" is SUCCESSFUL' % client_session)
+            print(colorama.Fore.GREEN + 'Session login for "%s" is SUCCESSFUL' % client_session)
         else:
-            print(FORE_RED + 'Session login for "%s" is FAILED' % client_session)
+            print(colorama.Fore.LIGHTRED_EX + 'Session login for "%s" is FAILED' % client_session)
 
 
 # Exit if there is no available client
 if 0 == len(clients):
-    print(FORE_RED + 'No client available...')
+    print(colorama.Fore.LIGHTRED_EX + 'No client available...')
     sys.exit()
 
 
 # Initialize `destination_groups` dict, same keys as clients
 destination_groups = {}
-sys.stdout.write(FORE_CYAN + '\n\nDestination Group: ')
+sys.stdout.write(colorama.Fore.LIGHTCYAN_EX + '\n\nDestination Group: ')
 print('"%s"' % conf.destination_group)
 for client_session, client in clients.items():
     # each session
@@ -114,9 +208,9 @@ for client_session, client in clients.items():
         # Join if not IN.
         if g.left:
             client(JoinChannelRequest(g))
-            print(FORE_YELLOW + 'JOINED')
+            print(colorama.Fore.LIGHTYELLOW_EX + 'JOINED')
         else:
-            print(FORE_GREEN + 'IN')
+            print(colorama.Fore.GREEN + 'IN')
 
         # Democracy
         if g.democracy:
@@ -127,14 +221,14 @@ for client_session, client in clients.items():
             if (g.admin_rights is not None and g.admin_rights.invite_users):
                 destination_groups[client_session] = g
             else:
-                sys.stdout.write(FORE_RED + '    Have NO admin right to add a member,')
-                print(FORE_YELLOW + ' session is REMOVED.')
+                sys.stdout.write(colorama.Fore.LIGHTRED_EX + '    Have NO admin right to add a member,')
+                print(colorama.Fore.LIGHTYELLOW_EX + ' session is REMOVED.')
                 del clients[client_session]
 
     except ValueError as e:
-        print(FORE_RED + 'ERROR')
-        print(FORE_RED + '    %s' % e)
-        print(FORE_YELLOW + '    Please make sure "%s" is NOT banned' % client_session)
+        print(colorama.Fore.LIGHTRED_EX + 'ERROR')
+        print(colorama.Fore.LIGHTRED_EX + '    %s' % e)
+        print(colorama.Fore.LIGHTYELLOW_EX + '    Please make sure "%s" is NOT banned' % client_session)
         print('    session "%s" is removed from clients' % client_session)
         del clients[client_session]
         # sys.exit()
@@ -143,12 +237,12 @@ for client_session, client in clients.items():
 
 # Exit if there is no available client
 if 0 == len(clients):
-    print(FORE_RED + 'No client available...')
+    print(colorama.Fore.LIGHTRED_EX + 'No client available...')
     sys.exit()
 
 
 # OUTPUT: clients
-print(FORE_CYAN + '\n\nThese clients have been launched:')
+print(colorama.Fore.LIGHTCYAN_EX + '\n\nThese clients have been launched:')
 i = 1
 for key, client in clients.items():
     print('%4d: "%s"' % (i, key))
@@ -158,24 +252,23 @@ del i
 
 # Verify `source_groups`
 source_groups = []
-print(FORE_CYAN + '\n\nVerify Source Groups:')
-c = clients[client_sessions[0]]
+print(colorama.Fore.LIGHTCYAN_EX + '\n\nVerify Source Groups:')
 for group_key in conf.source_groups:
     print('  "%s" ... ' % group_key)
     try:
-        g = c.get_entity(group_key)
+        g = clients[client_sessions[0]].get_entity(group_key)
         source_groups.append(group_key)
-        print(FORE_GREEN + '    %s' % g.title)
+        print(colorama.Fore.GREEN + '    %s' % g.title)
     except errors.rpcerrorlist.InviteHashInvalidError as e:
-        sys.stdout.write(FORE_RED + '    [InviteHashInvalidError] ')
-        print(FORE_YELLOW + '%s' % e)
+        sys.stdout.write(colorama.Fore.LIGHTRED_EX + '    [InviteHashInvalidError] ')
+        print(colorama.Fore.LIGHTYELLOW_EX + '%s' % e)
     except ValueError as e:
-        sys.stdout.write(FORE_RED + '    [ValueError] ')
-        print(FORE_YELLOW + '%s' % e)
+        sys.stdout.write(colorama.Fore.LIGHTRED_EX + '    [ValueError] ')
+        print(colorama.Fore.LIGHTYELLOW_EX + '%s' % e)
 
 
 # OUTPUT: source_groups
-print(FORE_CYAN + '\n\nThese Source Groups have been verified:')
+print(colorama.Fore.LIGHTCYAN_EX + '\n\nThese Source Groups have been verified:')
 i = 1
 for group_key in source_groups:
     print('%4d: "%s"' % (i, group_key))
@@ -190,7 +283,7 @@ if (input('\n\n\nLOAD participants (y/n)? ') not in ['y', 'yes']):
 
 # Initialize `participants` dict
 participants = {}
-print(FORE_CYAN + '\n\nLoading participants:')
+print(colorama.Fore.LIGHTCYAN_EX + '\n\nLoading participants:')
 for client_session, client in clients.items():
     print('\n- %s:' % client_session)
     participants[client_session] = []
@@ -198,9 +291,11 @@ for client_session, client in clients.items():
         sys.stdout.write('  "%s" ... ' % group_key)
         ps = client.get_participants(group_key, aggressive=True)
         participants[client_session].extend(ps)
-        print(FORE_GREEN + '%d members' % len(ps))
+        print(colorama.Fore.GREEN + '%d members' % len(ps))
+        del ps
 
-    print(FORE_YELLOW + '    %d members' % len(participants[client_session]))
+    # members amount
+    print(colorama.Fore.LIGHTYELLOW_EX + '    %d members' % len(participants[client_session]))
 
 
 # Ready to GO ?
@@ -208,44 +303,25 @@ if (input('\n\n\nReady to GO (y/n)? ') not in ['y', 'yes']):
     sys.exit('\n\n')
 
 
-def get_user_display_name(u):
-    name = []
-    if u.first_name:
-        name.append(u.first_name)
-    if u.last_name:
-        name.append(u.last_name)
-    return ' | '.join(name)
-
-
-def invite_user(u):
-    sys.stdout.write('%6d: %s ... ' % (i, get_user_display_name(u)))
-
-    row = db.Invite.select().where(db.Invite.user_id == u.id).first()
-
-    if row is None:
-        invite = db.save_invite(u)
-        print(FORE_YELLOW + 'TO BE INVITED')
-    else:
-        print(FORE_GREEN + 'skipped')
-
-
 # Start inviting
-print(FORE_CYAN + '\n\nStarting inviting:')
+print(colorama.Fore.LIGHTCYAN_EX + '\n\nStarting inviting:')
 i = 0
 for u in participants[client_sessions[0]]:
     if u.bot is False:
+        # skip bots
         if len(get_user_display_name(u)) > conf.filter_user_display_name_too_much_words_limit:
+            # avoid spam, who has a very long name
             pass
         elif type(u.status) in conf.filter_user_status_types:
             # Not UserStatusOffline
             invite_user(u)
-        elif (isinstance(u.status, UserStatusOffline)):
+        elif (isinstance(u.status, UserStatusOffline) and is_user_status_offline_passed(u.status.was_online)):
             # UserStatusOffline
-            if is_user_status_offline_passed(u.status.was_online):
-                invite_user(u)
+            invite_user(u)
 
     # Next
     i += 1
+del i
 
 
 # embed & console

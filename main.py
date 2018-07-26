@@ -57,21 +57,24 @@ def invite_user(participant_index):
         i: index of participants[client_session]
     """
 
+    # Get a random session
+    client_session = random.choice(client_sessions)
+
+    # Get the user
+    user_to_be_invited = participants[client_session][participant_index]
+
     # SN, display_name
-    sys.stdout.write('%6d > [%s] ... ' % (i, get_user_display_name(u)))
+    sys.stdout.write('%6d > [%s] ... ' % (i, get_user_display_name(user_to_be_invited)))
 
     # Find in db
-    row = db.Invite.select().where(db.Invite.user_id == u.id).first()
+    row = db.Invite.select().where(db.Invite.user_id == user_to_be_invited.id).first()
 
     # No record in db
     if row is None:
-        # Get a random session
-        client_session = random.choice(client_sessions)
 
         # Echo
         sys.stdout.write(colorama.Fore.LIGHTYELLOW_EX + 'INVITE by "%s" ... ' % client_session)
 
-        user_to_be_invited = participants[client_session][participant_index]
 
         try:
             # Invite

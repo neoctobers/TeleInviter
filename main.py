@@ -50,11 +50,11 @@ def get_user_display_name(u):
     return '|'.join(name)
 
 
-def invite_user(u):
+def invite_user(participant_index):
     """Invite user to destination_group
 
     Args:
-        u: user
+        i: index of participants[client_session]
     """
 
     # SN, display_name
@@ -71,16 +71,17 @@ def invite_user(u):
         # Echo
         sys.stdout.write(colorama.Fore.LIGHTYELLOW_EX + 'INVITE by "%s" ... ' % client_session)
 
+        user_to_be_invited = participants[client_session][participant_index]
 
         try:
             # Invite
             clients[client_session](InviteToChannelRequest(
                 destination_groups[client_session],
-                [u],
+                [user_to_be_invited],
             ))
 
             # Save to db
-            db.save_invite(u)
+            db.save_invite(user_to_be_invited)
 
             # shows done
             sys.stdout.write(colorama.Fore.GREEN + 'DONE')
@@ -111,7 +112,7 @@ def invite_user(u):
             sys.stdout.write(colorama.Fore.LIGHTRED_EX + 'error#9. PeerFloodError...')
             print('Retry after 2 Mins...')
             time.sleep(120)
-            invite_user(u)
+            invite_user(participant_index)
     else:
         print(colorama.Fore.GREEN + 'skipped')
 
@@ -314,10 +315,10 @@ for u in participants[client_sessions[0]]:
             pass
         elif type(u.status) in conf.filter_user_status_types:
             # Not UserStatusOffline
-            invite_user(u)
+            invite_user(i)
         elif (isinstance(u.status, UserStatusOffline) and is_user_status_offline_passed(u.status.was_online)):
             # UserStatusOffline
-            invite_user(u)
+            invite_user(i)
 
     # Next
     i += 1

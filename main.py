@@ -13,7 +13,6 @@
 # [Telegram Group]:
 #     https://t.me/TeleInviter
 #
-
 import sys
 import time
 import random
@@ -29,7 +28,6 @@ from telethon.tl.types import UserStatusOffline
 from telethon.tl.functions.channels import JoinChannelRequest
 from telethon.tl.functions.channels import InviteToChannelRequest
 from pprint import pprint
-
 
 
 def get_user_display_name(u):
@@ -115,7 +113,7 @@ def invite_user(u):
         except errors.rpcerrorlist.PeerFloodError as e:
             sys.stdout.write(colorama.Fore.LIGHTRED_EX + '\n              error#9. PeerFloodError > ')
             sys.stdout.write(colorama.Fore.LIGHTMAGENTA_EX + '%s ' % e.message)
-            print('... Retry after 2 Mins...')
+            print('... Retry after 2 Mins ...')
             time.sleep(120)
             invite_user(u)
     else:
@@ -237,7 +235,6 @@ for client_session, client in clients.items():
         print(colorama.Fore.LIGHTYELLOW_EX + '    Please make sure "%s" is NOT banned' % client_session)
         print('    session "%s" is removed from clients' % client_session)
         del clients[client_session]
-        # sys.exit()
         pass
 
 
@@ -341,4 +338,3 @@ del i
 
 # embed & console
 console.embed(banner='\nconsole')
-

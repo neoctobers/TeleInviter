@@ -23,5 +23,4 @@ And avoid repetition from `destination_group`
 
 # TODO
 - db file name: hash sth.. / ex. destination_group(s)?
-- save users of destination_group, after `Initialize destination_groups dict`
 - etc.

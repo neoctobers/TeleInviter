@@ -24,6 +24,7 @@ import console
 import db
 from telethon import sync
 from telethon import errors
+from telethon.tl.types import PeerUser
 from telethon.tl.types import UserStatusOffline
 from telethon.tl.functions.channels import JoinChannelRequest
 from telethon.tl.functions.channels import InviteToChannelRequest
@@ -50,7 +51,7 @@ def get_user_display_name(u):
     return '|'.join(name)
 
 
-def invite_user(participant_index):
+def invite_user(u):
     """Invite user to destination_group
 
     Args:
@@ -61,7 +62,7 @@ def invite_user(participant_index):
     client_session = random.choice(client_sessions)
 
     # Get the user
-    user_to_be_invited = participants[client_session][participant_index]
+    user_to_be_invited = clients[client_session].get_entity(PeerUser(u.id))
 
     # SN, display_name
     sys.stdout.write('%6d > [%s] ... ' % (i, get_user_display_name(user_to_be_invited)))
@@ -93,29 +94,30 @@ def invite_user(participant_index):
             sleeping_secs = random.randint(conf.rd_sleep_min, conf.rd_sleep_max)
             print(colorama.Fore.LIGHTMAGENTA_EX + ' waiting %d secs...' % sleeping_secs)
             time.sleep(sleeping_secs)
-        except errors.rpcerrorlist.UserPrivacyRestrictedError:
+        except errors.rpcerrorlist.UserPrivacyRestrictedError as e:
             print(colorama.Fore.LIGHTRED_EX + 'error#0. UserPrivacyRestrictedError...')
-        except errors.rpcerrorlist.ChatAdminRequiredError:
+        except errors.rpcerrorlist.ChatAdminRequiredError as e:
             print(colorama.Fore.LIGHTRED_EX + 'error#1. ChatAdminRequiredError...')
-        except errors.rpcerrorlist.ChatIdInvalidError:
+        except errors.rpcerrorlist.ChatIdInvalidError as e:
             print(colorama.Fore.LIGHTRED_EX + 'error#2. ChatIdInvalidError...')
-        except errors.rpcerrorlist.InputUserDeactivatedError:
+        except errors.rpcerrorlist.InputUserDeactivatedError as e:
             print(colorama.Fore.LIGHTRED_EX + 'error#3. InputUserDeactivatedError...')
-        except errors.rpcerrorlist.PeerIdInvalidError:
+        except errors.rpcerrorlist.PeerIdInvalidError as e:
             print(colorama.Fore.LIGHTRED_EX + 'error#4. PeerIdInvalidError...')
-        except errors.rpcerrorlist.UserAlreadyParticipantError:
+        except errors.rpcerrorlist.UserAlreadyParticipantError as e:
             print(colorama.Fore.LIGHTRED_EX + 'error#5. UserAlreadyParticipantError...')
-        except errors.rpcerrorlist.UserIdInvalidError:
+        except errors.rpcerrorlist.UserIdInvalidError as e:
             print(colorama.Fore.LIGHTRED_EX + 'error#6. UserIdInvalidError...')
-        except errors.rpcerrorlist.UserNotMutualContactError:
+        except errors.rpcerrorlist.UserNotMutualContactError as e:
             print(colorama.Fore.LIGHTRED_EX + 'error#7. UserNotMutualContactError...')
-        except errors.rpcerrorlist.UsersTooMuchError:
+        except errors.rpcerrorlist.UsersTooMuchError as e:
             print(colorama.Fore.LIGHTRED_EX + 'error#8. UsersTooMuchError...')
-        except errors.rpcerrorlist.PeerFloodError:
-            sys.stdout.write(colorama.Fore.LIGHTRED_EX + 'error#9. PeerFloodError...')
-            print('Retry after 2 Mins...')
+        except errors.rpcerrorlist.PeerFloodError as e:
+            sys.stdout.write(colorama.Fore.LIGHTRED_EX + '\n              error#9. PeerFloodError > ')
+            sys.stdout.write(colorama.Fore.LIGHTMAGENTA_EX + '%s ' % e.message)
+            print('... Retry after 2 Mins...')
             time.sleep(120)
-            invite_user(participant_index)
+            invite_user(u)
     else:
         print(colorama.Fore.GREEN + 'skipped')
 
@@ -239,6 +241,15 @@ for client_session, client in clients.items():
         pass
 
 
+# save participants of destination_group
+sys.stdout.write('  -\n  save participants ... ')
+ps = clients[client_sessions[0]].get_participants(conf.destination_group, aggressive=True)
+sys.stdout.write(colorama.Fore.LIGHTYELLOW_EX + '%d members ... ' % len(ps))
+for u in ps:
+    db.save_invite(u)
+print(colorama.Fore.GREEN + 'DONE')
+
+
 # Exit if there is no available client
 if 0 == len(clients):
     print(colorama.Fore.LIGHTRED_EX + 'No client available...')
@@ -318,10 +329,10 @@ for u in participants[client_sessions[0]]:
             pass
         elif type(u.status) in conf.filter_user_status_types:
             # Not UserStatusOffline
-            invite_user(i)
+            invite_user(u)
         elif (isinstance(u.status, UserStatusOffline) and is_user_status_offline_passed(u.status.was_online)):
             # UserStatusOffline
-            invite_user(i)
+            invite_user(u)
 
     # Next
     i += 1

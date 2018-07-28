@@ -113,9 +113,10 @@ def invite_user(u):
         except errors.rpcerrorlist.PeerFloodError as e:
             sys.stdout.write(colorama.Fore.LIGHTRED_EX + '\n              error#9. PeerFloodError > ')
             sys.stdout.write(colorama.Fore.LIGHTMAGENTA_EX + '%s ' % e.message)
-            print('... Retry after 2 Mins ...')
-            time.sleep(120)
-            invite_user(u)
+            # Prepare to exit: record the position of job failed
+            db.get_create_or_update_pause_position(i)
+            # When PeerFloodError occurs, it should better not to use this client any more
+            sys.exit(0)
     else:
         print(colorama.Fore.GREEN + 'skipped')
 
@@ -317,8 +318,9 @@ if (input('\n\n\nReady to GO (y/n)? ') not in ['y', 'yes']):
 
 # Start inviting
 print(colorama.Fore.LIGHTCYAN_EX + '\n\nStarting inviting:')
-i = 0
-for u in participants[client_sessions[0]]:
+# leave back or use the position you want to start from
+i = db.get_create_or_update_pause_position()
+for u in participants[client_sessions[0]][i:]:
     if u.bot is False:
         # skip bots
         if len(get_user_display_name(u)) > conf.filter_user_display_name_too_much_words_limit:

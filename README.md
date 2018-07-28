@@ -1,6 +1,6 @@
 # TeleInviter
-Invite members, from (many) `source_groups` to (one) `destination_group`.
-And avoid repetition from `destination_group`
+Invite members, from (many) `source_groups` to (one) `destination_group`
+and avoid repetition from `destination_group`
 
 # ENV
 - python3

@@ -10,7 +10,7 @@ And avoid repetition from `destination_group`
 - `pip3 install peewee`
 - `pip3 install colorama`
 - `pip3 install pprint`
-- maybe some packages i forgot..
+- maybe some packages I forgot...
 
 # RUN
 - make a configuration file named `conf.py`

@@ -15,7 +15,7 @@ and avoid repetition from `destination_group`
 # RUN
 - make a configuration file named `conf.py`
 - run `py main.py`
-- initial database `python3 db_init.py`
+- init database `python3 db_init.py`
 - two confirmation during the processing
 
 # Developing

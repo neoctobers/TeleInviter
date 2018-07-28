@@ -3,6 +3,6 @@ from db import *
 
 
 db.connect()
-db.create_tables([Invite])
+db.create_tables([Invite, KeyPosition])
 
 print('Database: initialization complete!')

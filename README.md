@@ -1,6 +1,6 @@
 # TeleInviter
 Invite members, from (many) `source_groups` to (one) `destination_group`
-And avoid repetition from `destination_group`
+and avoid repetition from `destination_group`
 
 # ENV
 - python3
@@ -10,11 +10,12 @@ And avoid repetition from `destination_group`
 - `pip3 install peewee`
 - `pip3 install colorama`
 - `pip3 install pprint`
-- maybe some packages i forgot..
+- maybe some packages I forgot...
 
 # RUN
 - make a configuration file named `conf.py`
 - run `py main.py`
+- init database `python3 db_init.py`
 - two confirmation during the processing
 
 # Developing

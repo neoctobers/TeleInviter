@@ -59,3 +59,21 @@ def save_invite(u):
         invite.save()
 
     return invite
+
+
+class KeyPosition(BaseModel):
+    pause_position = CharField(unique=True)
+
+
+def get_create_or_update_pause_position(position=None):
+    # create
+    if position is None:
+        position = 0
+    key_position, created = KeyPosition.get_or_create(pause_position=position)
+
+    # update
+    if position is not None and (position != key_position.pause_position):
+        key_position.pause_position = position
+        key_position.save()
+
+    return key_position.pause_position

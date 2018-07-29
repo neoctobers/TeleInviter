@@ -74,13 +74,12 @@ def invite_user(u):
         # Echo
         sys.stdout.write(colorama.Fore.LIGHTYELLOW_EX + 'INVITE by "%s" ... ' % client_session)
 
-
+        # Invite
         try:
-            # Invite
-            clients[client_session](InviteToChannelRequest(
-                destination_groups[client_session],
-                [user_to_be_invited],
-            ))
+            # clients[client_session](InviteToChannelRequest(
+            #     destination_groups[client_session],
+            #     [user_to_be_invited],
+            # ))
 
             # Save to db
             db.save_invite(user_to_be_invited)
@@ -116,6 +115,9 @@ def invite_user(u):
             print('... Retry after 2 Mins ...')
             time.sleep(120)
             invite_user(u)
+        except ValueError as e:
+            sys.stdout.write(colorama.Fore.LIGHTRED_EX + '\n              [ValueError] > ')
+            print(e)
     else:
         print(colorama.Fore.GREEN + 'skipped')
 
@@ -245,6 +247,7 @@ sys.stdout.write(colorama.Fore.LIGHTYELLOW_EX + '%d members ... ' % len(ps))
 for u in ps:
     db.save_invite(u)
 print(colorama.Fore.GREEN + 'DONE')
+del ps
 
 
 # Exit if there is no available client
@@ -293,21 +296,19 @@ if (input('\n\n\nLOAD participants (y/n)? ') not in ['y', 'yes']):
     sys.exit('\n\n')
 
 
-# Initialize `participants` dict
-participants = {}
+# Initialize `participants` list
+participants = []
 print(colorama.Fore.LIGHTCYAN_EX + '\n\nLoading participants:')
-for client_session, client in clients.items():
-    print('\n- %s:' % client_session)
-    participants[client_session] = []
-    for group_key in source_groups:
-        sys.stdout.write('  "%s" ... ' % group_key)
-        ps = client.get_participants(group_key, aggressive=True)
-        participants[client_session].extend(ps)
-        print(colorama.Fore.GREEN + '%d members' % len(ps))
-        del ps
 
-    # members amount
-    print(colorama.Fore.LIGHTYELLOW_EX + '    %d members' % len(participants[client_session]))
+for group_key in source_groups:
+    sys.stdout.write('  "%s" ... ' % group_key)
+    ps = clients[client_sessions[0]].get_participants(group_key, aggressive=True)
+    participants.extend(ps)
+    print(colorama.Fore.GREEN + '%d members' % len(ps))
+    del ps
+
+# members amount
+print(colorama.Fore.LIGHTYELLOW_EX + '    %d members' % len(participants))
 
 
 # Ready to GO ?
@@ -318,7 +319,7 @@ if (input('\n\n\nReady to GO (y/n)? ') not in ['y', 'yes']):
 # Start inviting
 print(colorama.Fore.LIGHTCYAN_EX + '\n\nStarting inviting:')
 i = 0
-for u in participants[client_sessions[0]]:
+for u in participants:
     if u.bot is False:
         # skip bots
         if len(get_user_display_name(u)) > conf.filter_user_display_name_too_much_words_limit:

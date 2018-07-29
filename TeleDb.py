@@ -1,9 +1,12 @@
 # coding:utf-8
-from peewee import *
 import time
+import conf
+import colorama
+import fn
+from peewee import *
 
 
-db = SqliteDatabase('database.db')
+db = SqliteDatabase(conf.db_file)
 
 
 class BaseModel(Model):
@@ -30,8 +33,12 @@ class Invite(BaseModel):
     def call_name(self):
         if self.username:
             return '@%s' % self.username
-        return self.full_name
+        return self.display_name
 
+def confirm_tables():
+    db.connect()
+    db.create_tables([Invite])
+    return
 
 def save_invite(u):
     invite, created = Invite.get_or_create(

@@ -3,6 +3,7 @@
 
 import sys
 import conf
+import TeleDb
 import console
 import colorama
 
@@ -20,12 +21,15 @@ if __name__ == '__main__':
     # for key, client_session in conf.sessions.items():
     #     clients[key] = TeleInviter(client_session)
 
-    i = TeleInviter(conf.sessions['richard'])
+    TeleDb.confirm_tables()
+
+    i = TeleInviter(conf.sessions['richard'], db=TeleDb)
     i.set_source_groups([
-        'https://t.me/three001',
+        # 'https://t.me/three001',
         'https://t.me/dalubocai',
     ])
     i.set_destination_group('https://t.me/asilentgroup')
     i.start()
+
 
 console.embed(banner='\n\nconsole')

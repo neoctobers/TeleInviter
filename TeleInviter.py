@@ -20,7 +20,6 @@ import colorama
 import telethon
 import conf
 import console
-import db
 import fn
 from telethon import sync
 from telethon import errors
@@ -32,17 +31,13 @@ from pprint import pprint
 
 
 class TeleInviter():
-    def __init__(
-            self,
-            client_session=None,
-            # source_groups=None,
-            # destination_groups=None,
-    ):
+    def __init__(self, client_session=None, db=None):
         # Initialize colorama with auto-reset on
         colorama.init(autoreset=True)
 
         self._client = self._init_client(client_session)
         self._client_name = client_session['name']
+        self._db = db
         self._source_groups = []
         self._destination_group = None
         self._destination_groups = []
@@ -54,6 +49,10 @@ class TeleInviter():
     @property
     def client_name(self):
         return self._client_name
+
+    @property
+    def db(self):
+        return self._db
 
     @property
     def source_groups(self):
@@ -219,11 +218,36 @@ class TeleInviter():
             fn.print_title('START INVITING, from %d source_groups to 1 destination_group' % len(self._source_groups))
             fn.print_text('------ ------ ------ ------\n')
 
+            self._load_and_save_participants_from_destination_group()
+
+            # Start working...
             for source_group in self._source_groups:
-                fn.print_title('\nIMPORTING PARTICIPANTS of SOURCE_GROUP.')
-                fn.print_text('  #%d / %s' % (source_group.id, source_group.username))
-                fn.stdout_warning('    %s ...' % source_group.title)
-                participants = self._client.get_participants(source_group, aggressive=True)
-                fn.print_success(' %d members.' % len(participants))
+                fn.print_title('\nIMPORTING PARTICIPANTS from SOURCE_GROUP.')
+            #     fn.print_text('  #%d / %s' % (source_group.id, source_group.username))
+            #     fn.stdout_warning('    %s ...' % source_group.title)
+            #     participants = self._client.get_participants(source_group, aggressive=True)
+            #     fn.print_success(' %d members.' % len(participants))
+            #
+            #     for u in participants:
+            #         print(u.id, self._get_user_console_name(u))
+            #         self._db.save_invite(u)
         return
 
+    def _load_and_save_participants_from_destination_group(self):
+        fn.print_title('\nLOAD & SAVE PARTICIPANTS from DESTINATION_GROUP.')
+        fn.stdout_text('  "%s" ...' % self._destination_group.username)
+
+        participants = self._client.get_participants(self._destination_group, aggressive=True)
+
+        fn.print_success(' %d members.' % len(participants))
+
+        i = 0
+        for u in participants:
+            if u.bot is False:
+                self._db.save_invite(u)
+                i += 1
+                fn.stdout_warning('\r    %d saved.' % i)
+                fn.stdout_text(' not include any bot.')
+                sys.stdout.flush()
+        del i
+        print()

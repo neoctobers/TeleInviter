@@ -21,8 +21,8 @@ import telethon
 import conf
 import console
 import fn
+import TeleErrors
 from telethon import sync
-from telethon import errors
 from telethon.tl.types import PeerUser
 from telethon.tl.types import UserStatusOffline
 from telethon.tl.functions.channels import JoinChannelRequest
@@ -32,15 +32,16 @@ from pprint import pprint
 
 class TeleInviter():
     def __init__(self, client_session=None, db=None):
-        # Initialize colorama with auto-reset on
         colorama.init(autoreset=True)
-
         self._client = self._init_client(client_session)
         self._client_name = client_session['name']
+        self._area_code = client_session['area_code']
+        self._me = self._client.get_me()
         self._db = db
         self._source_groups = []
         self._destination_group = None
         self._destination_groups = []
+        self._pending_users = []
 
     @property
     def client(self):
@@ -49,6 +50,10 @@ class TeleInviter():
     @property
     def client_name(self):
         return self._client_name
+
+    @property
+    def me(self):
+        return self._me
 
     @property
     def db(self):
@@ -151,7 +156,7 @@ class TeleInviter():
                 group = self._client.get_entity(group_key)
                 fn.print_success('    %s' % group.title)
                 self._source_groups.append(group)
-            except errors.rpcerrorlist.InviteHashInvalidError as e:
+            except telethon.errors.rpcerrorlist.InviteHashInvalidError as e:
                 fn.stdout_error('    [InviteHashInvalidError] ')
                 fn.print_warning(e)
             except ValueError as e:
@@ -215,7 +220,7 @@ class TeleInviter():
         if len(self._source_groups) and self._destination_group:
             fn.print_text('\n------ ------ ------ ------')
             fn.print_warning('CLIENT "%s":' % self._client_name)
-            fn.print_title('START INVITING, from %d source_groups to 1 destination_group' % len(self._source_groups))
+            fn.print_title('START INVITING, from %d source_group(s) to 1 destination_group' % len(self._source_groups))
             fn.print_text('------ ------ ------ ------\n')
 
             self._load_and_save_participants_from_destination_group()
@@ -223,15 +228,186 @@ class TeleInviter():
             # Start working...
             for source_group in self._source_groups:
                 fn.print_title('\nIMPORTING PARTICIPANTS from SOURCE_GROUP.')
-            #     fn.print_text('  #%d / %s' % (source_group.id, source_group.username))
-            #     fn.stdout_warning('    %s ...' % source_group.title)
-            #     participants = self._client.get_participants(source_group, aggressive=True)
-            #     fn.print_success(' %d members.' % len(participants))
-            #
-            #     for u in participants:
-            #         print(u.id, self._get_user_console_name(u))
-            #         self._db.save_invite(u)
+                fn.print_text('  #%d / %s' % (source_group.id, source_group.username))
+                fn.stdout_warning('    %s ...' % source_group.title)
+                participants = self._client.get_participants(source_group, aggressive=True)
+                fn.print_success(' %d members.' % len(participants))
+
+                for user in participants:
+                    if user.bot is False:
+                        if len(self._get_user_display_name(user)) > conf.filter_user_display_name_too_much_words_limit:
+                            # avoid spam, who has a very long name
+                            pass
+                        elif type(user.status) in conf.filter_user_status_types:
+                            # Not UserStatusOffline
+                            self._pend_user(user)
+                        elif (
+                                isinstance(user.status, UserStatusOffline) and
+                                self._is_user_status_offline_passed(user.status.was_online)
+                        ):
+                            # UserStatusOffline
+                            self._pend_user(user)
+
+                    if len(self._pending_users) > random.randint(conf.rd_pending_users_amount_min, conf.rd_pending_users_amount_max):
+                        self._do_batch_invite()
         return
+
+    def _pend_user(self, user):
+        """Pend a user to pool if not in database
+
+        Args:
+            user: user
+
+        Returns:
+            boolean
+        """
+        if self._db.Invite.select().where(self._db.Invite.user_id == user.id).first():
+            return False
+
+        if self._db.UserPrivacyRestricted.select().where(self._db.UserPrivacyRestricted.user_id == user.id).first():
+            return False
+
+        if self._db.UserNotMutual.select().where(self._db.UserNotMutual.user_id == user.id, self._db.UserNotMutual.area_code == self._area_code).first():
+            return False
+
+        self._pending_users.append(user)
+        return True
+
+    def _do_batch_invite(self):
+        fn.print_warning('\n  INVITE %d users:' % len(self._pending_users))
+
+        # call the roll
+        for user in self._pending_users:
+            fn.print_text('    #.%d > %s' % (user.id, self._get_user_console_name(user)))
+
+        # batch invite
+        fn.stdout_warning('      BATCH INVITE...')
+
+        updates = self._client(InviteToChannelRequest(
+            self._destination_group,
+            self._pending_users
+        ))
+
+        if len(updates.users):
+            fn.print_success(' %d/%d DONE' % (len(updates.users) - 1, len(self._pending_users)))
+
+            # save invite to database
+            for user in updates.users:
+                if user.id != self._me.id:
+                    fn.print_success('        #.%d > %s' % (user.id, self._get_user_console_name(user)))
+                    self._db.save_invite(user)
+
+            # clear pool
+            self._pending_users = []
+
+            # CPU sleep
+            sleeping_secs = random.randint(conf.rd_sleep_min, conf.rd_sleep_max)
+            fn.print_info('  ... waiting %d secs ...' % sleeping_secs)
+            time.sleep(sleeping_secs)
+        else:
+            print()
+            for user in self._pending_users:
+                self._do_one_invite(user)
+            pass
+
+    def _do_one_invite(self, user):
+        fn.stdout_text('        INVITE user.#%d > %s...' % (user.id, self._get_user_console_name(user)))
+
+        # Invite
+        try:
+            self._client(InviteToChannelRequest(
+                self._destination_group,
+                [user]
+            ))
+
+            # save to database
+            self._db.save_invite(user)
+
+            # shows done
+            fn.stdout_success(' DONE')
+
+            # CPU sleep
+            sleeping_secs = random.randint(conf.rd_sleep_min, conf.rd_sleep_max)
+            fn.print_info(' waiting %d secs...' % sleeping_secs)
+            time.sleep(sleeping_secs)
+
+        except ValueError as e:
+            fn.print_error('\n              [ValueError] > ')
+            fn.print_text(e)
+
+            # CPU sleep
+            sleeping_secs = random.randint(conf.rd_sleep_min, conf.rd_sleep_max)
+            fn.print_info('  ...waiting %d secs...' % sleeping_secs)
+            time.sleep(sleeping_secs)
+        except telethon.errors.rpcerrorlist.UserPrivacyRestrictedError:
+            fn.stdout_error(' error.#0: UserPrivacyRestrictedError')
+            self._db.save_user_privacy_restricted(user)
+
+            # CPU sleep
+            sleeping_secs = random.randint(conf.rd_sleep_min, conf.rd_sleep_max)
+            fn.print_info(' waiting %d secs...' % sleeping_secs)
+            time.sleep(sleeping_secs)
+        except telethon.errors.rpcerrorlist.ChatAdminRequiredError:
+            fn.stdout_error(' error.#1: ChatAdminRequiredError')
+
+            # CPU sleep
+            sleeping_secs = random.randint(conf.rd_sleep_min, conf.rd_sleep_max)
+            fn.print_info(' waiting %d secs...' % sleeping_secs)
+            time.sleep(sleeping_secs)
+        except telethon.errors.rpcerrorlist.ChatIdInvalidError:
+            fn.stdout_error(' error.#2: ChatIdInvalidError')
+
+            # CPU sleep
+            sleeping_secs = random.randint(conf.rd_sleep_min, conf.rd_sleep_max)
+            fn.print_info(' waiting %d secs...' % sleeping_secs)
+            time.sleep(sleeping_secs)
+        except telethon.errors.rpcerrorlist.InputUserDeactivatedError:
+            fn.stdout_error(' error.#3: InputUserDeactivatedError')
+
+            # CPU sleep
+            sleeping_secs = random.randint(conf.rd_sleep_min, conf.rd_sleep_max)
+            fn.print_info(' waiting %d secs...' % sleeping_secs)
+            time.sleep(sleeping_secs)
+        except telethon.errors.rpcerrorlist.PeerIdInvalidError:
+            fn.stdout_error(' error.#4: PeerIdInvalidError')
+
+            # CPU sleep
+            sleeping_secs = random.randint(conf.rd_sleep_min, conf.rd_sleep_max)
+            fn.print_info(' waiting %d secs...' % sleeping_secs)
+            time.sleep(sleeping_secs)
+        except telethon.errors.rpcerrorlist.UserAlreadyParticipantError:
+            fn.stdout_error(' error.#5: UserAlreadyParticipantError')
+
+            # CPU sleep
+            sleeping_secs = random.randint(conf.rd_sleep_min, conf.rd_sleep_max)
+            fn.print_info(' waiting %d secs...' % sleeping_secs)
+            time.sleep(sleeping_secs)
+        except telethon.errors.rpcerrorlist.UserIdInvalidError:
+            fn.stdout_error(' error.#6: UserIdInvalidError')
+
+            # CPU sleep
+            sleeping_secs = random.randint(conf.rd_sleep_min, conf.rd_sleep_max)
+            fn.print_info(' waiting %d secs...' % sleeping_secs)
+            time.sleep(sleeping_secs)
+        except telethon.errors.rpcerrorlist.UserNotMutualContactError:
+            fn.stdout_error(' error.#7: UserNotMutualContactError')
+            self._db.save_user_not_mutual(user, self._area_code)
+
+            # CPU sleep
+            sleeping_secs = random.randint(conf.rd_sleep_min, conf.rd_sleep_max)
+            fn.print_info(' waiting %d secs...' % sleeping_secs)
+            time.sleep(sleeping_secs)
+        except telethon.errors.rpcerrorlist.UsersTooMuchError:
+            fn.stdout_error(' error.#8: UsersTooMuchError')
+
+            # CPU sleep
+            sleeping_secs = random.randint(conf.rd_sleep_min, conf.rd_sleep_max)
+            fn.print_info(' waiting %d secs...' % sleeping_secs)
+            time.sleep(sleeping_secs)
+        except telethon.errors.rpcerrorlist.PeerFloodError as e:
+            fn.stdout_error(' error.#9: PeerFloodError')
+            fn.print_warning(' %s' % e)
+            raise TeleErrors.PeerFloodError
 
     def _load_and_save_participants_from_destination_group(self):
         fn.print_title('\nLOAD & SAVE PARTICIPANTS from DESTINATION_GROUP.')
@@ -249,5 +425,31 @@ class TeleInviter():
                 fn.stdout_warning('\r    %d saved.' % i)
                 fn.stdout_text(' not include any bot.')
                 sys.stdout.flush()
-        del i
         print()
+
+    @staticmethod
+    def _is_user_status_offline_passed(t):
+        """Check UserStatusOffline `was_online` limit
+
+        Args:
+            t: datetime
+
+        Returns:
+            boolean
+        """
+        if (
+                (conf.filter_user_status_offline_was_online_min is None or t >= conf.filter_user_status_offline_was_online_min)
+                and
+                (conf.filter_user_status_offline_was_online_max is None or t <= conf.filter_user_status_offline_was_online_max)
+        ):
+            # t >= `user_status_offline_was_online_min` if it was set
+            # AND
+            # t <= `user_status_offline_was_online_max` if it was set
+            return True
+
+        # Or return False
+        return False
+
+    @staticmethod
+    def rd_sleep():
+        pass

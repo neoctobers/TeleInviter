@@ -41,6 +41,14 @@ def stdout_warning(value):
     sys.stdout.write(colorama.Fore.LIGHTYELLOW_EX + '%s' % value)
     return
 
+def print_info(value):
+    print(colorama.Fore.LIGHTMAGENTA_EX + '%s' % value)
+    return
+
+def stdout_info(value):
+    sys.stdout.write(colorama.Fore.LIGHTMAGENTA_EX + '%s' % value)
+    return
+
 def print_title(value):
     print(colorama.Fore.LIGHTCYAN_EX + '%s' % value)
     return

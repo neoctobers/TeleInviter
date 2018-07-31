@@ -19,15 +19,11 @@ import random
 import colorama
 import telethon
 import conf
-import console
 import fn
 import TeleErrors
-from telethon import sync
-from telethon.tl.types import PeerUser
 from telethon.tl.types import UserStatusOffline
 from telethon.tl.functions.channels import JoinChannelRequest
 from telethon.tl.functions.channels import InviteToChannelRequest
-from pprint import pprint
 
 
 class TeleInviter():

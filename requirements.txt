@@ -1,0 +1,6 @@
+telethon==1.1.1
+Telethon-sync==1.0.4
+PySocks==1.6.8
+peewee==3.6.4
+colorama==0.3.9
+pprint==0.1

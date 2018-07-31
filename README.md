@@ -10,17 +10,23 @@ And avoid repetition from `destination_group`
 - `pip3 install peewee`
 - `pip3 install colorama`
 - `pip3 install pprint`
-- maybe some packages i forgot..
+- maybe some packages I forgot..
 
 # RUN
 - make a configuration file named `conf.py`
-- run `py main.py`
-- two confirmation during the processing
+- run `py start.py`
+- No confirmation during the processing
 
 # Developing
 - ing. ing.. ing....
 
 
 # TODO
-- db file name: hash sth.. / ex. destination_group(s)?
+- db file name: hash sth.?
 - etc.
+
+# Thanks
+
+Thanks a lot to:
+
+[xyou365](https://github.com/xyou365) 

@@ -23,7 +23,7 @@ if __name__ == '__main__':
         clients[key] = TeleInviter(client_session, db=TeleDb)
         clients[key].set_source_groups(conf.source_groups)
         clients[key].set_destination_group(conf.destination_group)
-
+    
         try:
             clients[key].start()
         except TeleErrors.PeerFloodError:
@@ -32,7 +32,7 @@ if __name__ == '__main__':
     # i = TeleInviter(conf.sessions['heyongchao'], db=TeleDb)
     # i.set_source_groups(conf.source_groups)
     # i.set_destination_group(conf.destination_group)
-    #
+
     # try:
     #     i.start()
     # except TeleErrors.PeerFloodError:

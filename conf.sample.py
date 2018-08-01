@@ -26,7 +26,7 @@ sessions = {
             'name': 'session_name',
             'area_code': '+1',
             'phone': '+12345678900',
-            'proxy': (socks.SOCKS5, 'localhost', 1080),
+            'proxy': (socks.SOCKS5, 'localhost', 1080), # set `None` if u don't need a socks5 proxy.
         },
 }
 

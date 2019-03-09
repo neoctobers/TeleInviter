@@ -27,3 +27,5 @@ Thanks a lot to:
 # Developing is PUASED.
 
 I think [pyrogram](https://github.com/pyrogram/pyrogram) is more better. It's more flexible.
+
+So, this repo will be archived...

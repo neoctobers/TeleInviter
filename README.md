@@ -12,20 +12,18 @@ And avoid repetition from `destination_group`
 - `pip3 install pprint`
 - maybe some packages I forgot..
 
-# RUN
-- make a configuration file named `conf.py`
-- run `py start.py`
-- No confirmation during the processing
-
-# Developing
-
-is PUASED.
-
-I think [pyrogram](https://github.com/pyrogram/pyrogram) is more better. It's more flexible.
-
-
 # Thanks
 
 Thanks a lot to:
 
 [xyou365](https://github.com/xyou365) 
+
+
+# RUN
+- make a configuration file named `conf.py`
+- run `py start.py`
+- No confirmation during the processing
+
+# Developing is PUASED.
+
+I think [pyrogram](https://github.com/pyrogram/pyrogram) is more better. It's more flexible.

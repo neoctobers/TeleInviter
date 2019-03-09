@@ -18,12 +18,11 @@ And avoid repetition from `destination_group`
 - No confirmation during the processing
 
 # Developing
-- ing. ing.. ing....
 
+is PUASED.
 
-# TODO
-- db file name: hash sth.?
-- etc.
+I think [pyrogram](https://github.com/pyrogram/pyrogram) is more better. It's more flexible.
+
 
 # Thanks
 
